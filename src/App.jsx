@@ -11,7 +11,10 @@ function App() {
   const fetchContributors = async (e) => {
     e.preventDefault()
     
-    if (!owner || !repo) {
+    const trimmedOwner = owner.trim()
+    const trimmedRepo = repo.trim()
+    
+    if (!trimmedOwner || !trimmedRepo) {
       setError('Please enter both owner and repository name')
       return
     }
@@ -22,7 +25,7 @@ function App() {
 
     try {
       const response = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/contributors`
+        `https://api.github.com/repos/${trimmedOwner}/${trimmedRepo}/contributors`
       )
       
       if (!response.ok) {
