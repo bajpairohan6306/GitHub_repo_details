@@ -272,20 +272,28 @@ input:disabled {
 }
 
 .sort-select {
-  background: rgba(255, 255, 255, 0.1);
+  background: #1a3a52;
   color: white;
-  border: 1px solid rgba(233, 69, 96, 0.3);
+  border: 2px solid #e94560;
   padding: 8px 12px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.9rem;
   transition: all 0.3s ease;
+  font-weight: 500;
 }
 
 .sort-select:hover,
 .sort-select:focus {
-  border-color: #e94560;
-  background: rgba(255, 255, 255, 0.15);
+  border-color: #f39c12;
+  background: #1f4a62;
+  box-shadow: 0 0 10px rgba(233, 69, 96, 0.3);
+}
+
+.sort-select option {
+  background: #1a3a52;
+  color: white;
+  padding: 8px;
 }
 
 .contributors-list {
