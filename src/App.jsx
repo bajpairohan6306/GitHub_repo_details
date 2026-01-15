@@ -7,6 +7,8 @@ function App() {
   const [contributors, setContributors] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [repoInfo, setRepoInfo] = useState(null)
+  const [sortBy, setSortBy] = useState('contributions')
 
   const fetchContributors = async (e) => {
     e.preventDefault()
@@ -22,10 +24,12 @@ function App() {
     setLoading(true)
     setError('')
     setContributors([])
+    setRepoInfo(null)
 
     try {
+      // Fetch contributors
       const response = await fetch(
-        `https://api.github.com/repos/${trimmedOwner}/${trimmedRepo}/contributors`
+        `https://api.github.com/repos/${trimmedOwner}/${trimmedRepo}/contributors?per_page=100`
       )
       
       if (!response.ok) {
@@ -33,7 +37,20 @@ function App() {
       }
 
       const data = await response.json()
-      console.log(data,data.length)
+      
+      // Fetch repo info
+      try {
+        const repoResponse = await fetch(
+          `https://api.github.com/repos/${trimmedOwner}/${trimmedRepo}`
+        )
+        if (repoResponse.ok) {
+          const repoData = await repoResponse.json()
+          setRepoInfo(repoData)
+        }
+      } catch (err) {
+        console.log('Could not fetch repo info')
+      }
+
       setContributors(data)
     } catch (err) {
       setError(err.message)
@@ -42,52 +59,154 @@ function App() {
     }
   }
 
+  const sortedContributors = [...contributors].sort((a, b) => {
+    if (sortBy === 'contributions') {
+      return b.contributions - a.contributions
+    } else if (sortBy === 'name') {
+      return a.login.localeCompare(b.login)
+    }
+    return 0
+  })
+
   return (
     <div className="container">
-      <h1>GitHub Repository Contributors</h1>
+      <header className="header">
+        <div className="header-content">
+          <h1>🚀 GitHub Contributors Finder</h1>
+          <p className="subtitle">Discover who's building amazing open-source projects</p>
+        </div>
+      </header>
       
-      <form onSubmit={fetchContributors}>
-        <div className="input-group">
-          <input
-            type="text"
-            placeholder="Repository owner (username or organization)"
-            value={owner}
-            onChange={(e) => setOwner(e.target.value)}
-          />
+      <form onSubmit={fetchContributors} className="search-form">
+        <div className="form-wrapper">
+          <div className="input-group">
+            <label htmlFor="owner">Repository Owner</label>
+            <input
+              id="owner"
+              type="text"
+              placeholder="e.g., facebook, microsoft, torvalds"
+              value={owner}
+              onChange={(e) => setOwner(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+          
+          <div className="input-group">
+            <label htmlFor="repo">Repository Name</label>
+            <input
+              id="repo"
+              type="text"
+              placeholder="e.g., react, vscode, linux"
+              value={repo}
+              onChange={(e) => setRepo(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+          
+          <button type="submit" disabled={loading} className="search-btn">
+            {loading ? (
+              <>
+                <span className="spinner"></span>
+                Searching...
+              </>
+            ) : (
+              <>
+                <span>🔍</span> Find Contributors
+              </>
+            )}
+          </button>
         </div>
-        
-        <div className="input-group">
-          <input
-            type="text"
-            placeholder="Repository name"
-            value={repo}
-            onChange={(e) => setRepo(e.target.value)}
-          />
-        </div>
-        
-        <button type="submit" disabled={loading}>
-          {loading ? 'Fetching...' : 'Get Contributors'}
-        </button>
       </form>
 
-      {error && <div className="error">{error}</div>}
+      {error && (
+        <div className="alert error-alert">
+          <span>❌</span> {error}
+        </div>
+      )}
+
+      {repoInfo && (
+        <div className="repo-info">
+          <div className="repo-header">
+            <h2>{repoInfo.name}</h2>
+            <div className="repo-stats">
+              <div className="stat">
+                <span className="stat-icon">⭐</span>
+                <div>
+                  <p className="stat-value">{repoInfo.stargazers_count.toLocaleString()}</p>
+                  <p className="stat-label">Stars</p>
+                </div>
+              </div>
+              <div className="stat">
+                <span className="stat-icon">🍴</span>
+                <div>
+                  <p className="stat-value">{repoInfo.forks_count.toLocaleString()}</p>
+                  <p className="stat-label">Forks</p>
+                </div>
+              </div>
+              <div className="stat">
+                <span className="stat-icon">👁️</span>
+                <div>
+                  <p className="stat-value">{repoInfo.watchers_count.toLocaleString()}</p>
+                  <p className="stat-label">Watchers</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          {repoInfo.description && (
+            <p className="repo-description">{repoInfo.description}</p>
+          )}
+        </div>
+      )}
 
       {contributors.length > 0 && (
-        <div className="contributors-list">
-          <h2>Contributors ({contributors.length})</h2>
-          <ul>
-            {contributors.map((contributor) => (
-              <li key={contributor.id}>
-                <img src={contributor.avatar_url} alt={contributor.login} />
-                <div className="contributor-info">
-                  <a href={contributor.html_url} target="_blank" rel="noopener noreferrer">
+        <div className="contributors-section">
+          <div className="section-header">
+            <h2>👥 Contributors ({contributors.length})</h2>
+            <div className="sort-controls">
+              <label htmlFor="sort">Sort by:</label>
+              <select
+                id="sort"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="sort-select"
+              >
+                <option value="contributions">Contributions (High to Low)</option>
+                <option value="name">Name (A to Z)</option>
+              </select>
+            </div>
+          </div>
+          
+          <div className="contributors-list">
+            {sortedContributors.map((contributor) => (
+              <div key={contributor.id} className="contributor-card">
+                <img 
+                  src={contributor.avatar_url} 
+                  alt={contributor.login}
+                  className="avatar"
+                />
+                <div className="contributor-details">
+                  <a 
+                    href={contributor.html_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="username"
+                  >
                     {contributor.login}
                   </a>
-                  <p>Contributions: {contributor.contributions}</p>
+                  <div className="contributions-badge">
+                    {contributor.contributions} {contributor.contributions === 1 ? 'contribution' : 'contributions'}
+                  </div>
                 </div>
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
+        </div>
+      )}
+
+      {!loading && contributors.length === 0 && !error && (
+        <div className="empty-state">
+          <p className="empty-icon">🔎</p>
+          <p className="empty-text">Search for a repository to see its contributors</p>
         </div>
       )}
     </div>
