@@ -10,7 +10,11 @@ function Home() {
   const [error, setError] = useState('')
   const [repoInfo, setRepoInfo] = useState(null)
   const [sortBy, setSortBy] = useState('contributions')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalContributors, setTotalContributors] = useState(0)
   const navigate = useNavigate()
+  
+  const ITEMS_PER_PAGE = 50
 
   const fetchContributors = async (e) => {
     e.preventDefault()
@@ -27,11 +31,13 @@ function Home() {
     setError('')
     setContributors([])
     setRepoInfo(null)
+    setCurrentPage(1)
+    setTotalContributors(0)
 
     try {
-      // Fetch contributors
+      // Fetch contributors - get first page
       const response = await fetch(
-        `https://api.github.com/repos/${trimmedOwner}/${trimmedRepo}/contributors?per_page=100`
+        `https://api.github.com/repos/${trimmedOwner}/${trimmedRepo}/contributors?per_page=50&page=1`
       )
       
       if (!response.ok) {
@@ -39,6 +45,19 @@ function Home() {
       }
 
       const data = await response.json()
+      
+      // Get total count from Link header
+      const linkHeader = response.headers.get('link')
+      let total = data.length
+      
+      if (linkHeader) {
+        const lastMatch = linkHeader.match(/page=(\d+)>; rel="last"/)
+        if (lastMatch) {
+          total = parseInt(lastMatch[1]) * 50
+        }
+      }
+      
+      setTotalContributors(total)
       
       // Fetch repo info
       try {
@@ -54,6 +73,33 @@ function Home() {
       }
 
       setContributors(data)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchPage = async (pageNumber) => {
+    const trimmedOwner = owner.trim()
+    const trimmedRepo = repo.trim()
+
+    setLoading(true)
+    setError('')
+
+    try {
+      const response = await fetch(
+        `https://api.github.com/repos/${trimmedOwner}/${trimmedRepo}/contributors?per_page=50&page=${pageNumber}`
+      )
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch contributors')
+      }
+
+      const data = await response.json()
+      setContributors(data)
+      setCurrentPage(pageNumber)
+      window.scrollTo(0, 0)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -167,7 +213,7 @@ function Home() {
       {contributors.length > 0 && (
         <div className="contributors-section">
           <div className="section-header">
-            <h2>👥 Contributors ({contributors.length})</h2>
+            <h2>👥 Contributors (Total: {totalContributors})</h2>
             <div className="sort-controls">
               <label htmlFor="sort">Sort by:</label>
               <select
@@ -206,6 +252,30 @@ function Home() {
               </div>
             ))}
           </div>
+
+          {totalContributors > ITEMS_PER_PAGE && (
+            <div className="pagination">
+              <button
+                className="pagination-btn"
+                onClick={() => fetchPage(currentPage - 1)}
+                disabled={currentPage === 1 || loading}
+              >
+                ← Previous
+              </button>
+
+              <div className="pagination-info">
+                Page <span className="page-number">{currentPage}</span> of <span className="page-number">{Math.ceil(totalContributors / ITEMS_PER_PAGE)}</span>
+              </div>
+
+              <button
+                className="pagination-btn"
+                onClick={() => fetchPage(currentPage + 1)}
+                disabled={currentPage * ITEMS_PER_PAGE >= totalContributors || loading}
+              >
+                Next →
+              </button>
+            </div>
+          )}
         </div>
       )}
 
